@@ -1,0 +1,83 @@
+# =============================================================================
+# Project    : A risk-of-contagion index using a Bayesian based model for the COVID-19 epidemic in Mexico
+# Script     : 4_covidestim_mun_merge.R
+# Purpose    : Summarize all covidestim estimates for all municipalities by variable
+#
+# Authors    : Ruth Corona-Moreno*, M. Adrian Acuña-Zegarra**, Mario Santana-Cibrian***, *Jorge X. Velasco-Hernandez
+# Affiliations: *Instituto de Matemáticas UNAM-Juriquilla, **Departamento de Matemáticas Universidad de Sonora, ***Escuela Nacional de Estudios Superiores UNAM Juriquilla
+#
+# Contact    : ruth.corona.m@im.unam.mx
+#
+# Input      : csv files containing covidestim output of all municipalities
+#
+# Output     : "data/covidestim/",variable,"_",mun,".csv"
+#             
+# Repository : https://github.com/RuthCoronaMoreno/COVID19-MX-Estimation
+# =============================================================================
+
+
+library(tidyverse)
+library(dplyr)
+library(purrr)
+library(data.table)
+
+# Variables to extract
+vars <- c("severe", "severe.lo", "severe.hi",
+          "infections.lo", "infections", "infections.hi",
+          "cum.incidence.lo", "cum.incidence", "cum.incidence.hi",
+          "Rt.lo", "Rt", "Rt.hi", "deaths", "deaths.lo", "deaths.hi",
+          "deaths.fitted", "deaths.fitted.lo", "deaths.fitted.hi")
+
+
+folders <- list.dirs(
+  path = "data/covidestim",
+  recursive = FALSE,
+  full.names = FALSE
+)
+
+folders <- folders[folders != "states"]
+
+
+#covidestim files
+files <- list.files(paste0("data/covidestim/",folders), pattern = "\\.csv$",full.names = TRUE)
+
+#Create list for saving all data for each variable
+lists <- setNames(vector("list", length(vars)), vars)
+
+#Extract columns of each variable
+for(f in files){
+  
+  df <- fread(f, select = c("date", vars))
+  
+  #get state number
+  id <- gsub("|\\_covidestim.csv", "", basename(f))
+  
+  #Filter each variable data for each state
+  for(v in vars){
+    tmp <- df[, list(date, value = get(v))]
+    setnames(tmp, "value", id)
+    
+    lists[[v]][[id]] <- tmp
+  }
+  print(f)
+}
+
+# Merge data of all states in a unique dataframe for each variable
+for(v in vars){
+  
+  # Merge 
+  df_final <- Reduce(
+    function(x, y) merge(x, y, by = "date", all = TRUE),
+    lists[[v]]
+  )
+  
+  # Order variables in dataframe
+  setorder(df_final, date)
+  df_final[is.na(df_final)] <- 0
+  
+  
+  # Saving dataframe
+  fwrite(df_final, file.path("data/covidestim/", paste0(v, "_mun.csv")))
+  
+  print(v)
+}
