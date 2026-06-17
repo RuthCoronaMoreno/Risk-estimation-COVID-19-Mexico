@@ -15,19 +15,6 @@
 # Repository : https://github.com/RuthCoronaMoreno/COVID19-MX-Estimation
 # =============================================================================
 
-library(readr)
-library(readxl)
-library(dplyr)
-library(ggplot2)
-library(scales)
-
-#----parameter settings----
-lastDay <- as.Date("2020-12-25")
-data_type=c("incidence", "hosp", "Rt")
-
-#----population mx----
-pop_csv <- read.csv("data/raw/population_mx.csv")
-
 
 #----Reported data----
 report_files <- list.files("data/processed/", pattern = "\\_mun_mx.csv$",full.names = TRUE)
@@ -237,16 +224,16 @@ key_mun=sub("X", "", basename(colnames(report_list$incidence)))
 key_mun=key_mun[-c(1,2)]
 
 for(mun in key_mun){
-  mun_name=pop_csv$NOM_MUN[pop_csv$CVEGEO==as.numeric(mun)]
+  mun_name=popmx$NOM_MUN[popmx$CVEGEO==as.numeric(mun)]
   lapply(data_type, plot)
   print(mun)
   
 }
 
 
-for(mun in key_mun[-c(1:2445)]) {
+for(mun in key_mun) {
   tryCatch({
-    mun_name=pop_csv$NOM_MUN[pop_csv$CVEGEO==as.numeric(mun)]
+    mun_name=popmx$NOM_MUN[popmx$CVEGEO==as.numeric(mun)]
     lapply(data_type, plot)
     print(mun)
   }, {

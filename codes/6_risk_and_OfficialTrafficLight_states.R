@@ -19,19 +19,11 @@
 # Repository : https://github.com/RuthCoronaMoreno/COVID19-MX-Estimation
 # =============================================================================
 
-library(tidyr)
-library(stringi)
-library(ggplot2)
-library(irr)
-library(lubridate)
-library(dplyr)
-library(reshape2)
-
 #-------------------------------
 #-----Official traffic light----
 #-------------------------------
 Official_TrafficLight<-function(heatmap_trafficlight){
-  traf_light<- read.csv("data/raw/official_traficlight_colors.csv")
+
   #Change rows order
   new_order <- c("Coahuila", "Colima", "Chiapas", "Chihuahua", "Ciudad de México")
   rows <- which(traf_light$estado %in% c("Chiapas","Chihuahua","Ciudad de México","Coahuila","Colima"))
@@ -131,13 +123,13 @@ risk=function(p,n){
 }
 
 #risk_Traffic-Light
-risk_TrafficLight <-function(type_traffic_light){
+risk_TrafficLight <-function(type_traffic_light, writeCSV){
   
   if (!exists("setup_done")){
     pop_info=pop_func()
     df = pop_info[[1]]
     pop_sort = pop_info[[2]][]
-    ddss=pop_info[[3]][]
+    popmx=pop_info[[3]][]
     
     setup_done <- TRUE
   }
@@ -163,36 +155,42 @@ risk_TrafficLight <-function(type_traffic_light){
   
   #Filter continuous risk in date1_months
   df_risk_filt <- df_risk[df_risk$date %in% date1_months,]
-  rownames(df_risk_filt) <- df_risk_filt$date
-  df_risk_filt$date <- NULL
   
-  keys=as.numeric(gsub("X", "", colnames(df_risk_filt)))
+  keys=as.numeric(gsub("X", "", colnames(df_risk_filt[-1])))
   
   names_new=sapply(keys, function(i){
-    ddss$NOM_REGION[ddss$CLAVE_REGION==i][1]  
+    popmx$NOM_REGION[popmx$CLAVE_REGION==i][1]  
   })
   
-  colnames(df_risk_filt)=names_new
+  colnames(df_risk_filt)=c("date", names_new)
   
-  
-  df_risk_filt <- df_risk_filt[,  stri_trans_general(colnames(TrafLight), "Latin-ASCII")]
+  df_risk_filt <- df_risk_filt[, c("date", stri_trans_general(colnames(TrafLight), "Latin-ASCII"))]
   
   
   #-----Discrete risk-----
   df_risk_discret <- df_risk_filt
   
-  df_risk_discret[] <- lapply(df_risk_discret, function(x) {
+  df_risk_discret[-1][] <- lapply(df_risk_discret[-1], function(x) {
     ifelse(x < 25, 1,
            ifelse(x < 50, 2,
                   ifelse(x < 75, 3, 4)))
   })
   
   
+  if(writeCSV){
+    write.csv(df_risk_discret, paste0("data/risk/discreet_risk_mx_k",k,".csv"), row.names=FALSE)
+  }
+  
+  rownames(df_risk_discret) <- df_risk_discret$date
+  df_risk_discret$date <- NULL
+  
 #----------------------------------------------------------------  
   if(type_traffic_light=="continuous_risk"){
     
     #----save csv----
-    write.csv(df_risk_filt, paste0("data/risk/continuous_risk_mx_k",k,".csv"), row.names=FALSE)
+    if(writeCSV){
+      write.csv(df_risk_filt, paste0("data/risk/continuous_risk_mx_k",k,".csv"), row.names=FALSE)
+    }
     
     #----plot continuous heatmap-----
     melted_state_risk <- melt(data.frame(date=as.Date(rownames(df_risk_filt)), df_risk_filt), id="date")
@@ -222,17 +220,13 @@ risk_TrafficLight <-function(type_traffic_light){
             legend.text = element_text(size = 11)
       )
     
-    ggsave(figname, height = 7*length(colnames), width = 7, limitsize = FALSE) #change factor of height to change size of pdf
-    #width = 10, limitsize = FALSE)
+    ggsave(figname, height = 7*length(colnames), width = 7, limitsize = FALSE)
+    
     
     df_output=df_risk_filt
   }else if(type_traffic_light=="discreet_risk"){
     
-    
-    #----save csv----
-    write.csv(df_risk_discret, paste0("data/risk/discreet_risk_mx_k",k,".csv"), row.names=FALSE)
-    
-    
+  
     #----plot discret heatmap-----
     melted_state_risk2 <- melt(data.frame(date=as.Date(rownames(df_risk_discret)), df_risk_discret), id="date")
     melted_state_risk2$variable <- factor(
@@ -261,11 +255,10 @@ risk_TrafficLight <-function(type_traffic_light){
       )+
       scale_x_date(breaks = unique(melted_state_risk2$date),
                    date_labels = "%Y-%m-%d",expand = c(0,0))  +
-      #scale_x_date(expand = c(0,0), breaks = date1_months)+
       labs(
         title = paste0("Discretize risk estimate in Mexico (k=",k,")"),
-        x = "", # "Dates",
-        y = "" #str_to_title(type_mun)
+        x = "", 
+        y = "" 
       )+
       theme_minimal() +
       theme(panel.grid = element_blank(),
@@ -276,8 +269,8 @@ risk_TrafficLight <-function(type_traffic_light){
             legend.text = element_text(size = 11)
       )
     
-    ggsave(figname, height = 7*length(colnames), width = 7, limitsize = FALSE) #change factor of height to change size of pdf
-    #width = 10, limitsize = FALSE)
+    ggsave(figname, height = 7*length(colnames), width = 7, limitsize = FALSE)
+   
    
     df_output=df_risk_discret
   }
@@ -295,17 +288,14 @@ pop_func<-function(){
   df=read.csv(paste0("data/covidestim/infections_states.csv"))  
   df[is.na(df)] <- 0
   
-  #population
-  ddss = read.csv(paste("data/raw/population_mx.csv",sep=""))
-  
-  pop <- ddss %>%
+  pop <- popmx %>%
     group_by(CLAVE_REGION) %>%
     summarise(suma_total = sum(POBTOT))
   
   pop_vec <- setNames(pop$suma_total, paste0("X",pop$CLAVE_REGION))
   pop_s <- pop_vec[match(colnames(df), names(pop_vec))][-1]
   
-  return(list(df, pop_s, ddss))
+  return(list(df, pop_s, popmx))
 }
 
 
@@ -316,7 +306,6 @@ pop_func<-function(){
 #--Set parameters--
 start_date <- as.Date("2020-07-06")
 end_date <- as.Date("2021-10-26") 
-k=100
 
 #Epidemiological weeks number
 nweek_start_date<-ifelse(start_date<"2021-01-01",isoweek(start_date)-1, isoweek(start_date))
@@ -328,7 +317,7 @@ mondays <- date_seq[weekdays(date_seq) == 'Monday']
 date1_months=mondays[!duplicated(format(mondays, "%Y-%m"))]
 
 TrafLight <- Official_TrafficLight(TRUE) #Argument:heatmap
-risk_k <- risk_TrafficLight(type_traffic_light="discreet_risk") #(n, continuous_risk, discreet_risk)
+risk_k <- risk_TrafficLight(type_traffic_light="discreet_risk", writeCSV = TRUE) #(n, continuous_risk, discreet_risk)
 
 
 
@@ -352,13 +341,10 @@ for(i in 1:32){
   kappaTest=kappa2(
     cbind(
       as.vector(as.matrix(TrafLight[i])),
-      as.vector(as.matrix(risk_n[i]))
+      as.vector(as.matrix(risk_k[i]))
     ),
     weight = "squared"
   )
-  if(kappaTest$value<0.6){
-    print(c(i, kappaTest$value))
-  }
 }  
 
 
@@ -374,7 +360,7 @@ print(c(k, subestim, sobrestim, exactestim))
 summary= data.frame()
 for(k in 1: 200){
   TrafLight <- Official_TrafficLight(FALSE) 
-  risk_n <- risk_TrafficLight(type_traffic_light="discreet_risk")
+  risk_n <- risk_TrafficLight(type_traffic_light="discreet_risk", writeCSV=FALSE)
     
   conf_matrix=table(
     as.vector(as.matrix(TrafLight)),
@@ -395,6 +381,7 @@ for(k in 1: 200){
   
   new_row <- as.data.frame(as.list(c(k=k, kappa = kappaTest$value, underestim=subestim, overestim=sobrestim, match=exactestim)))
   summary <- rbind(summary, new_row)
+  print(paste0("Risk for k=",k," for several comparisons"))
 }
 
-write.csv(df_risk_filt, paste0("data/risk/discreet_risk_severalK_1-200.csv"), row.names=FALSE)
+write.csv(summary, paste0("data/risk/discreet_risk_severalK_1-200.csv"), row.names=FALSE)

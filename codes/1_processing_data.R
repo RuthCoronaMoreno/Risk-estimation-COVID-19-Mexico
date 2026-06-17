@@ -18,42 +18,30 @@
 # Repository : https://github.com/RuthCoronaMoreno/COVID19-MX-Estimation
 # =============================================================================
 
-library(dplyr)
-library(tidyr)
 
 ################################################################################################
 #If you want to first process full official database "COVID19MEXICO_2020.csv" run from this part
 
 #---Filter COVID-19 confirmed cases from the official raw data----
 #-Upload dataframes-
-R = read.csv("data/raw/COVID19MEXICO_2020.csv") # raw COVID-19 data
-pos20 = R[R$CLASIFICACION_FINAL %in% c(1, 2, 3),]
-deaths20 = pos20[pos20$FECHA_DEF!="9999-99-99",]
+#R = read.csv("data/raw/COVID19MEXICO_2020.csv") # raw COVID-19 data
+#pos20 = R[R$CLASIFICACION_FINAL %in% c(1, 2, 3),]
+#deaths20 = pos20[pos20$FECHA_DEF!="9999-99-99",]
 
-R2 = read.csv("data/raw/COVID19MEXICO_2021.csv") # raw COVID-19 data
-pos21 = R2[R2$CLASIFICACION_FINAL %in% c(1, 2, 3),]
-deaths21 = pos21[pos21$FECHA_DEF!="9999-99-99",]
+#R2 = read.csv("data/raw/COVID19MEXICO_2021.csv") # raw COVID-19 data
+#pos21 = R2[R2$CLASIFICACION_FINAL %in% c(1, 2, 3),]
+#deaths21 = pos21[pos21$FECHA_DEF!="9999-99-99",]
 
 #----Merge dataframes----
-pos_tot= rbind(pos20, pos21)
-write.csv(pos_tot, "data/processed/confirmed_20-21.csv")
+#pos_tot= rbind(pos20, pos21)
+#write.csv(pos_tot, "data/processed/confirmed_20-21.csv")
 
 
 
 #####################################################################
 #If you already have "confirmed_20-21.csv" you can run from this part
 
-#----Upload Data-----
-pos_tot=read.csv("data/processed/confirmed_20-21.csv")
-pos_tot$ENTIDAD_RES <-sprintf("%02d",pos_tot$ENTIDAD_RES)
 pos_tot$CVEGEO <- paste0(pos_tot$ENTIDAD_RES,sprintf("%03d", pos_tot$MUNICIPIO_RES))
-popmx=read.csv("data/raw/population_mx.csv")
-
-
-#----Parameters----
-type= "deaths" #"incidence", "deaths", "hosp"
-groupBy <-"mun" # "states", "mun"
-lastDay <- "2021-12-31"
 
 #----Execution----
 

@@ -15,16 +15,11 @@
 # Repository : https://github.com/RuthCoronaMoreno/COVID19-MX-Estimation
 # =============================================================================
 
-library(dplyr) 
-library(fitdistrplus)
-
-#----Upload Data-----
-pos_tot=read.csv("data/processed/confirmed_20-21.csv")
 
 #----Functions----
 pos_data <-function(st, lastDay){
-  pos = pos_tot[pos_tot$FECHA_SINTOMAS<lastDay & pos_tot$FECHA_SINTOMAS>"2020-03-23" & pos_tot$SEXO==1 & pos_tot$EDAD>=40 & pos_tot$EDAD<=59,]
-  if(st!=0){
+  pos = pos_tot[pos_tot$FECHA_SINTOMAS<lastDay & pos_tot$FECHA_SINTOMAS>"2020-03-23",]
+  if(as.numeric(st)!=0){
     pos = pos[pos$ENTIDAD_RES==st,]  
   }
   
@@ -187,12 +182,9 @@ hist_plot <- function(res, dist){
          cex = 1.9)
 }
 
-#----Parameters----
-state = 9
-lastDay = "2020-12-31"
-dist_name="sym_prg_regist"
 
 #----Execution----
+state=sprintf("%02d", state)
 positives = pos_data(state, lastDay)
 results = estim_func(positives, dist_name)
 
@@ -207,8 +199,10 @@ hist_plot(results, dist_name)
 dev.off() 
 
 
-#Output prameter values
+#Output parameter values
 a=results[[2]][[2]]
 b=results[[2]][[3]]
 cvdstim_a= results[[3]]
 cvdstim_b= results[[4]]
+
+print(paste0("Parameters of ",dist_name, "a priori distribution are: a=",as.character(a[[1]])," and b=",as.character(b[[1]])))

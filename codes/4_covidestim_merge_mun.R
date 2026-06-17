@@ -16,19 +16,7 @@
 # =============================================================================
 
 
-library(tidyverse)
-library(dplyr)
-library(purrr)
-library(data.table)
-
-# Variables to extract
-vars <- c("severe", "severe.lo", "severe.hi",
-          "infections.lo", "infections", "infections.hi",
-          "cum.incidence.lo", "cum.incidence", "cum.incidence.hi",
-          "Rt.lo", "Rt", "Rt.hi", "deaths", "deaths.lo", "deaths.hi",
-          "deaths.fitted", "deaths.fitted.lo", "deaths.fitted.hi")
-
-
+#---covidestim files---
 folders <- list.dirs(
   path = "data/covidestim",
   recursive = FALSE,
@@ -37,8 +25,6 @@ folders <- list.dirs(
 
 folders <- folders[folders != "states"]
 
-
-#covidestim files
 files <- list.files(paste0("data/covidestim/",folders), pattern = "\\.csv$",full.names = TRUE)
 
 #Create list for saving all data for each variable
@@ -59,7 +45,6 @@ for(f in files){
     
     lists[[v]][[id]] <- tmp
   }
-  print(f)
 }
 
 # Merge data of all states in a unique dataframe for each variable

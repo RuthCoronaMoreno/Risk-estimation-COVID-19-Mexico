@@ -11,7 +11,7 @@
 # Input      : data/raw/population_mx.csv
 #              data/raw/official_traficlight_colors.csv
 #              data/covidestim/infections_mun.csv
-#              data/risk/discreet_risk_states_k",k,".csv
+#              data/risk/discreet_risk_mx_k",k,".csv
 #              data/risk/discreet_risk_mun_k",k,".csv
 
 # Output     : plots/risk/heatmap_discreet_mun_s",s,"_k",k,".pdf
@@ -19,80 +19,69 @@
 # =============================================================================
 
 
-library(ggplot2)
-library(cowplot)
-library(reshape2)
-library(lubridate)
-library(stringr)
-library(stringi)
-library(zoo)
-
-#Gathering size 
-k=100
-
 #-----municipalities information----
-pop_csv = read.csv(paste("data/raw/population_mx.csv",sep=""))
-pop_csv$key_mun <- paste0("X", sprintf("%05d", pop_csv$CVEGEO))
-#pop_csv$NOM_REGION = str_to_title(pop_csv$NOM_REGION)
-pop_csv$NOM_MUN = str_to_title(pop_csv$NOM_MUN)
+popmx$key_mun <- paste0("X", sprintf("%05d", popmx$CVEGEO))
+popmx$NOM_MUN = str_to_title(popmx$NOM_MUN)
 
 #----------------------------------------------------------------------------------------------
-#--First RUN this part if you do NOT have the CSV risk for gathering size k in municipalities--
+#--RUN this part if CSV for gathering size k in municipalities does not exist--
 #----------------------------------------------------------------------------------------------
 
-#-covidestim estimates for municipalities-
-df=read.csv("data/covidestim/infections_mun.csv")
-
-pop_vec <- setNames(pop_csv$POBTOT, paste0("X",pop_csv$CVEGEO))
-
-#-Risk function-
-risk=function(p,n){
-  r=0
-  r=(1-((1-p)^n))*100
-  return (r)
-} 
-
-#-Computation of p=active/pop for risk function-
-
-#Active cases
-df_active<- as.data.frame(
-  lapply(df[-1], function(x)
-    rollsum(x, k = 14, align = "right", fill = NA)
+if(file.exists(paste0("data/risk/continuous_risk_mun_k",k,".csv"))==FALSE & file.exists(paste0("data/risk/discreet_risk_mun_k",k,".csv"))==FALSE){
+  
+  #-covidestim estimates for municipalities-
+  df=read.csv("data/covidestim/infections_mun.csv")
+  
+  pop_vec <- setNames(popmx$POBTOT, paste0("X",popmx$CVEGEO))
+  
+  #-Risk function-
+  risk=function(p,n){
+    r=0
+    r=(1-((1-p)^n))*100
+    return (r)
+  } 
+  
+  #-Computation of p=active/pop for risk function-
+  
+  #Active cases
+  df_active<- as.data.frame(
+    lapply(df[-1], function(x)
+      rollsum(x, k = 14, align = "right", fill = NA)
+    )
   )
-)
-df_active <- cbind(date = df$date , df_active)
-df_active[is.na(df_active)] <- 0
-
-pop <- pop_vec[match(colnames(df_active), names(pop_vec))][-1]
-
-#computation of p
-df_p <- as.data.frame(
-  lapply(names(df_active[-1]), function(col) {
-    df_active[[col]] / pop[col]
+  df_active <- cbind(date = df$date , df_active)
+  df_active[is.na(df_active)] <- 0
+  
+  pop <- pop_vec[match(colnames(df_active), names(pop_vec))][-1]
+  
+  #computation of p
+  df_p <- as.data.frame(
+    lapply(names(df_active[-1]), function(col) {
+      df_active[[col]] / pop[col]
+    })
+  )
+  
+  #computation of risk for n=k
+  df_risk <- as.data.frame(lapply(df_p, risk, n = k))
+  colnames(df_risk)=colnames(df_active[-1])
+  df_risk <- cbind(date = df_active$date , df_risk)
+  
+  #save continuous risk as .csv
+  write.csv(df_risk, paste0("data/risk/continuous_risk_mun_k",k,".csv"), row.names=FALSE)
+  
+  #----Discreet risk----
+  df_risk_disc = df_risk
+  df_risk_disc[-1][] <- lapply(df_risk_disc[-1], function(x) {
+    ifelse(x < 25, "1",
+           ifelse(x < 50, "2",
+                  ifelse(x < 75, "3", "4")))
   })
-)
-
-#computation of risk for n=k
-df_risk <- as.data.frame(lapply(df_p, risk, n = k))
-colnames(df_risk)=colnames(df_active[-1])
-df_risk <- cbind(date = df_active$date , df_risk)
-
-#save continuous risk as .csv
-write.csv(df_risk, paste0("data/risk/continuous_risk_mun_k",k,".csv"), row.names=FALSE)
-
-#----Discreet risk----
-df_risk_disc = df_risk
-df_risk_disc[-1][] <- lapply(df_risk_disc[-1], function(x) {
-  ifelse(x < 25, "verde",
-         ifelse(x < 50, "amarillo",
-                ifelse(x < 75, "naranja", "rojo")))
-})
-
-
-#save discreet risk as .csv
-write.csv(df_risk_disc, paste0("data/risk/discreet_risk_mun_k",k,".csv"), row.names=FALSE)
-
-
+  
+  
+  #save discreet risk as .csv
+  write.csv(df_risk_disc, paste0("data/risk/discreet_risk_mun_k",k,".csv"), row.names=FALSE)
+  
+}
 
 #----------------------------------------------------------------------
 #---------Comparison plots of risk and official traffic-light----------
@@ -114,6 +103,7 @@ date1_months=mondays[!duplicated(format(mondays, "%Y-%m"))]
 
 Official_TrafficLight<-function(){
   traf_light<- read.csv("data/raw/official_traficlight_colors.csv")
+  
   #Change rows order
   new_order <- c("Coahuila", "Colima", "Chiapas", "Chihuahua", "Ciudad de México")
   rows <- which(traf_light$estado %in% c("Chiapas","Chihuahua","Ciudad de México","Coahuila","Colima"))
@@ -162,7 +152,7 @@ official$value <- factor(official$value)
 official$variable<-stri_trans_general(official$variable, "Latin-ASCII")
 
 #------Risk traffic light (states)------
-risk_state_disc = read.csv(paste("data/risk/discreet_risk_states_k",k,".csv",sep=""))
+risk_state_disc = read.csv(paste("data/risk/discreet_risk_mx_k",k,".csv",sep=""))
 risk_state_disc$date=as.Date(risk_state_disc$date)
 risk_state_disc=risk_state_disc[risk_state_disc$date %in% date1_months,]
 melted_state_risk <- melt(risk_state_disc, id="date")
@@ -178,16 +168,16 @@ risk_mun_disc=risk_mun_disc[risk_mun_disc$date %in% date1_months,]
 colnames(risk_mun_disc)[-1]=paste0("X",sprintf("%05d", as.numeric(sub("^X", "", colnames(risk_mun_disc)[-1]))))
 melted_mun_risk <- melt(risk_mun_disc, id="date")
 melted_mun_risk$value <- factor(melted_mun_risk$value)
-melted_mun_risk$variable  <-pop_csv$NOM_MUN[match(melted_mun_risk$variable, pop_csv$key_mun)]
+melted_mun_risk$variable  <-popmx$NOM_MUN[match(melted_mun_risk$variable, popmx$key_mun)]
 
 
 #-------Plot function----------
 
 plot_func <- function(s){
   
-  state_name=pop_csv$NOM_REGION[pop_csv$CLAVE_REGION==s][1]
+  state_name=popmx$NOM_REGION[popmx$CLAVE_REGION==s][1]
   #state=sprintf("%02d", s)
-  mun_state=pop_csv$NOM_MUN[pop_csv$CLAVE_REGION==s]
+  mun_state=popmx$NOM_MUN[popmx$CLAVE_REGION==s]
   
   if(length(mun_state)<20){
     a=0.1 
@@ -288,22 +278,22 @@ plot_func <- function(s){
   
   #----plot risk traffic-light at municipality level----
   p2 <- ggplot(melted_mun_risk[melted_mun_risk$variable %in% mun_state,],
-               aes(x = date, y = variable, fill = value)) +
+               aes(x = date, y = variable, fill = factor(value))) +
     geom_tile(color = "white") +
     scale_y_discrete(limits = rev)+
     scale_fill_manual(
       name="Color",
       values = c(
-        "rojo" = "#D73027",
-        "naranja" = "#FC8D59",
-        "amarillo" = "#FEE08B",
-        "verde" = "#1A9850"
+        "4" = "#D73027",
+        "3" = "#FC8D59",
+        "2" = "#FEE08B",
+        "1" = "#1A9850"
       ),breaks = c("rojo", "naranja", "amarillo", "verde"),
       labels = c(
-        "rojo" = "Red",
-        "naranja" = "Orange",
-        "amarillo" = "Yellow",
-        "verde" = "Green"
+        "4" = "Red",
+        "3" = "Orange",
+        "2" = "Yellow",
+        "1" = "Green"
       ),
       na.value = "grey90"
     )+
@@ -345,7 +335,7 @@ plot_func <- function(s){
 
 #----plot execution----
 for(n in 1:32){
-  plot_func(n)
+  plot_func(n) #n: official state number
 }
 
 

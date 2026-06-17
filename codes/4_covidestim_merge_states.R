@@ -15,19 +15,6 @@
 # Repository : https://github.com/RuthCoronaMoreno/COVID19-MX-Estimation
 # =============================================================================
 
-library(tidyverse)
-library(dplyr)
-library(purrr)
-library(data.table)
-
-# Variables to extract
-vars <- c("severe", "severe.lo", "severe.hi",
-          "infections.lo", "infections", "infections.hi",
-          "cum.incidence.lo", "cum.incidence", "cum.incidence.hi",
-          "Rt.lo", "Rt", "Rt.hi", "deaths", "deaths.lo", 
-          "deaths.hi","deaths.fitted", "deaths.fitted.lo",
-          "deaths.fitted.hi")
-
 
 #covidestim files
 files <- list.files("data/covidestim/states", pattern = "\\.csv$",full.names = TRUE)
