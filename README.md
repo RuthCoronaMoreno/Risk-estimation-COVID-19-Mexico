@@ -87,9 +87,10 @@ Due to file size limitations, the complete datasets are not stored in this GitHu
 
 All datasets and supplementary materials are available through Zenodo:
 
-DOI: XXXXX
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20855060.svg)](https://doi.org/10.5281/zenodo.20855060)
 
 The repository contains only the code required to reproduce the analyses.
+
 
 
 ## Reproducing the Analyses
